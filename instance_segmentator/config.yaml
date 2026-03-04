@@ -1,0 +1,43 @@
+# Configuration globale de l'application
+
+# Paramètres du modèle de segmentation
+segmentation:
+  model_path: "yolov8s-seg.pt"  # Modèle 'small', plus puissant que le 'nano' (meilleure détection des petits objets)
+  conf_threshold: 0.10          # Seuil min rabaissé pour forcer la détection de plus d'objets locaux
+  iou_threshold: 0.45           # Seuil NMS (suppression des doublons)
+  min_area: 50                  # Aire minimale du masque abaissée
+  is_custom_model: false        # Passer à 'true' si le modèle est fine-tuné (alors on skip l'API OpenAI)
+
+# Paramètres de classification (Mode MVP via OpenAI)
+classification:
+  model: "gpt-4o-mini"          # Modèle Vision minimal / rapide d'OpenAI
+  categories:
+    - "lego"
+    - "figurine"
+    - "voiture"
+    - "autre"                   # Pour les détections parasites
+  valid_categories:
+    - "lego"
+    - "figurine"
+    - "voiture"
+  prompt: |
+    Tu es un assistant spécialisé en classification visuelle.
+    Regarde cette image détourée d'un objet.
+    Té tâche est de le classifier UNIQUEMENT parmi l'UNE de ces catégories: {categories}.
+    Si ce n'est ni un lego, ni une figurine, ni une voiture miniature/jouet, réponds "autre".
+    Réponds juste avec le nom exact de la catégorie, en minuscules, sans ponctuation.
+
+# Paramètres d'Aesthetic / Rendu
+rendering:
+  alpha_mask: 0.5               # Opacité par défaut des masques (0.0 à 1.0)
+  contour_thickness: 2          # Épaisseur du contour
+  colors:
+    lego: [255, 50, 50]         # Rouge clair (RGB)
+    figurine: [50, 200, 50]     # Vert clair
+    voiture: [50, 50, 255]      # Bleu clair
+    default: [128, 128, 128]    # Gris pour les objets non classés ou inconnus
+  text:
+    color: [255, 255, 255]      # Blanc
+    bg_color: [0, 0, 0]         # Fond noir pour le label
+    scale: 0.5                  # Taille du texte
+    thickness: 1                # Épaisseur du texte
