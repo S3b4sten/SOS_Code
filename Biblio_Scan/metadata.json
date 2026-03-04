@@ -1,0 +1,7 @@
+{
+  "name": "Book Scanner",
+  "description": "Prenez en photo une rangée de livres et identifiez-les tous d'un coup.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

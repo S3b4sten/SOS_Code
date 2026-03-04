@@ -1,0 +1,5 @@
+{
+  "name": "Toy Classifier",
+  "description": "Take a picture of toys and identify their names and categories.",
+  "requestFramePermissions": ["camera"]
+}
