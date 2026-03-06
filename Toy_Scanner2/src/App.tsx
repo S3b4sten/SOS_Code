@@ -95,7 +95,13 @@ export default function App() {
       // Extract base64 data from data URL
       const base64Data = imageSrc.split(',')[1];
       const analysisResults = await analyzeToys(base64Data, mimeType);
-      setResults(analysisResults);
+      // Tri: haut→bas, gauche→droite (objets sur la même « ligne » regroupés par ymin similaire)
+      const sorted = [...analysisResults].sort((a, b) => {
+        const rowDiff = a.box2d[0] - b.box2d[0];
+        if (Math.abs(rowDiff) > 0.15) return rowDiff; // lignes différentes
+        return a.box2d[1] - b.box2d[1];               // même ligne → tri par xmin
+      });
+      setResults(sorted);
     } catch (err) {
       console.error("Analysis failed:", err);
       setError("Échec de l'analyse de l'image. Veuillez réessayer.");
@@ -211,7 +217,7 @@ export default function App() {
                       alt="Captured toys"
                       className="w-auto h-auto max-w-full max-h-[50vh] md:max-h-[calc(100vh-16rem)] block"
                     />
-                    {results && !isAnalyzing && currentIndex < results.length && results[currentIndex].box2d && results[currentIndex].box2d.length === 4 && (
+                    {results && !isAnalyzing && currentIndex < results.length && (
                       <motion.div
                         layoutId="highlight-box"
                         initial={{ opacity: 0, scale: 0.8 }}

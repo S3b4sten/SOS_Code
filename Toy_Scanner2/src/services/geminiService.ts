@@ -7,7 +7,7 @@ export interface ToyAnalysisResult {
   category: string;
   description: string;
   confidence: string;
-  box2d?: [number, number, number, number];
+  box2d: [number, number, number, number];
 }
 
 export async function analyzeToys(base64Image: string, mimeType: string): Promise<ToyAnalysisResult[]> {
@@ -22,7 +22,7 @@ export async function analyzeToys(base64Image: string, mimeType: string): Promis
           },
         },
         {
-          text: "Identifie tous les jouets dans cette image. Retourne une liste où CHAQUE jouet individuel est un élément séparé du tableau. Ne les regroupe pas. Pour chaque jouet, fournis son nom spécifique, une catégorie appropriée (ex : Figurine d'action, Véhicule, Puzzle, Éducatif, Peluche, Blocs de construction), une brève description, ton niveau de confiance dans l'identification (Élevée, Moyenne, Faible), et une boîte englobante `box2d` représentant sa position dans l'image sous la forme [ymin, xmin, ymax, xmax] avec des valeurs normalisées entre 0.0 et 1.0. Réponds UNIQUEMENT en français.",
+          text: "Identifie tous les jouets dans cette image. Retourne une liste où CHAQUE jouet individuel est un élément séparé du tableau. Ne les regroupe pas. Pour chaque jouet, fournis : son nom spécifique, une catégorie appropriée (ex : Figurine d'action, Véhicule, Puzzle, Éducatif, Peluche, Blocs de construction), une brève description, ton niveau de confiance dans l'identification (Élevée, Moyenne, Faible), et OBLIGATOIREMENT une boîte englobante `box2d` sous la forme [ymin, xmin, ymax, xmax] avec des valeurs normalisées entre 0.0 et 1.0. Le champ box2d est REQUIS pour chaque jouet sans exception. Réponds UNIQUEMENT en français.",
         },
       ],
     },
@@ -37,13 +37,14 @@ export async function analyzeToys(base64Image: string, mimeType: string): Promis
             name: { type: Type.STRING, description: "The specific name or type of the toy." },
             category: { type: Type.STRING, description: "The general category the toy belongs to." },
             description: { type: Type.STRING, description: "A brief description of the toy's appearance or function." },
-            confidence: { type: Type.STRING, description: "Niveau de confiance de l'identification (\u00c9lev\u00e9e, Moyenne, Faible)." },
+            confidence: { type: Type.STRING, description: "Niveau de confiance de l'identification (Élevée, Moyenne, Faible)." },
             box2d: {
               type: Type.ARRAY,
               items: { type: Type.NUMBER },
-              description: "Bounding box [ymin, xmin, ymax, xmax] normalized between 0.0 and 1.0"
+              description: "REQUIRED bounding box [ymin, xmin, ymax, xmax] normalized between 0.0 and 1.0. Must always be provided."
             },
           },
+          required: ["name", "category", "description", "confidence", "box2d"],
         },
       },
     },
