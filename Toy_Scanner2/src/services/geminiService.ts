@@ -22,12 +22,12 @@ export async function analyzeToys(base64Image: string, mimeType: string): Promis
           },
         },
         {
-          text: "Identify all the toys in this image. Return a list where EACH individual toy is a separate item in the array. Do not group them together into one item. For each individual toy, provide its specific name, a suitable category (e.g., Action Figure, Vehicle, Puzzle, Educational, Plush, Building Blocks), a brief description, your confidence level in the identification, and a bounding box `box2d` representing its location in the image as [ymin, xmin, ymax, xmax] with values normalized between 0.0 and 1.0.",
+          text: "Identifie tous les jouets dans cette image. Retourne une liste où CHAQUE jouet individuel est un élément séparé du tableau. Ne les regroupe pas. Pour chaque jouet, fournis son nom spécifique, une catégorie appropriée (ex : Figurine d'action, Véhicule, Puzzle, Éducatif, Peluche, Blocs de construction), une brève description, ton niveau de confiance dans l'identification (Élevée, Moyenne, Faible), et une boîte englobante `box2d` représentant sa position dans l'image sous la forme [ymin, xmin, ymax, xmax] avec des valeurs normalisées entre 0.0 et 1.0. Réponds UNIQUEMENT en français.",
         },
       ],
     },
     config: {
-      systemInstruction: "You are an expert toy appraiser. You must return a JSON array where each element represents exactly one toy. Never group multiple toys into a single object.",
+      systemInstruction: "Tu es un expert en jouets. Tu dois retourner un tableau JSON où chaque élément représente exactement un jouet. Ne regroupes jamais plusieurs jouets dans un seul objet. Toutes les valeurs textuelles (name, category, description) doivent être en français.",
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.ARRAY,
@@ -37,7 +37,7 @@ export async function analyzeToys(base64Image: string, mimeType: string): Promis
             name: { type: Type.STRING, description: "The specific name or type of the toy." },
             category: { type: Type.STRING, description: "The general category the toy belongs to." },
             description: { type: Type.STRING, description: "A brief description of the toy's appearance or function." },
-            confidence: { type: Type.STRING, description: "Confidence level of the identification (High, Medium, Low)." },
+            confidence: { type: Type.STRING, description: "Niveau de confiance de l'identification (\u00c9lev\u00e9e, Moyenne, Faible)." },
             box2d: {
               type: Type.ARRAY,
               items: { type: Type.NUMBER },

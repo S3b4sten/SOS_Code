@@ -350,10 +350,10 @@ export default function App() {
                             <div className="mt-4 pt-4 flex items-center justify-between border-t border-slate-100 shrink-0">
                               <div className="flex items-center gap-1.5 text-xs md:text-sm font-medium text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
                                 <CheckCircle2 size={16} className={
-                                  results[currentIndex].confidence === 'High' ? 'text-emerald-500' :
-                                    results[currentIndex].confidence === 'Medium' ? 'text-amber-500' : 'text-red-500'
+                                  results[currentIndex].confidence === 'Élevée' ? 'text-emerald-500' :
+                                    results[currentIndex].confidence === 'Moyenne' ? 'text-amber-500' : 'text-red-500'
                                 } />
-                                {results[currentIndex].confidence} Confidence
+                                Confiance {results[currentIndex].confidence}
                               </div>
                             </div>
                           </motion.div>
