@@ -12,7 +12,7 @@ export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [decisions, setDecisions] = useState<Record<number, 'good' | 'bad'>>({});
   const [exitX, setExitX] = useState<number>(0);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -21,8 +21,8 @@ export default function App() {
   const startCamera = async () => {
     try {
       setError(null);
-      const newStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
       });
       setStream(newStream);
       if (videoRef.current) {
@@ -84,13 +84,13 @@ export default function App() {
 
   const handleAnalyze = async () => {
     if (!imageSrc || !mimeType) return;
-    
+
     setIsAnalyzing(true);
     setError(null);
     setCurrentIndex(0);
     setDecisions({});
     setExitX(0);
-    
+
     try {
       // Extract base64 data from data URL
       const base64Data = imageSrc.split(',')[1];
@@ -144,7 +144,7 @@ export default function App() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-start">
-          
+
           {/* Left Column: Image Input / Preview */}
           <div className="space-y-6 md:sticky md:top-24">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -157,7 +157,7 @@ export default function App() {
                   <p className="text-sm text-slate-500 mb-8 max-w-[250px]">
                     Take a picture of toys on a table or upload an existing photo to identify them.
                   </p>
-                  
+
                   <div className="flex flex-col w-full gap-3 sm:flex-row sm:justify-center">
                     <button
                       onClick={startCamera}
@@ -166,7 +166,7 @@ export default function App() {
                       <Camera size={18} />
                       Take Photo
                     </button>
-                    
+
                     <label className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors cursor-pointer shadow-sm">
                       <Upload size={18} />
                       Upload Photo
@@ -238,13 +238,13 @@ export default function App() {
                   </div>
                 </div>
               )}
-              
+
               {/* Hidden canvas for capturing video frames */}
               <canvas ref={canvasRef} className="hidden" />
             </div>
 
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="p-4 bg-red-50 border border-red-200 rounded-xl flex gap-3 text-red-800"
@@ -330,22 +330,28 @@ export default function App() {
                             }}
                           >
                             <div className="flex-1 overflow-y-auto pr-2">
-                              <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 mb-3 md:mb-4">
-                                {results[currentIndex].category}
+                              <div className="mb-3 md:mb-4">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-0.5">Catégorie</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-indigo-600 leading-tight">
+                                  {results[currentIndex].category}
+                                </h3>
                               </div>
-                              <h3 className="text-xl md:text-2xl font-bold text-slate-900 mb-2 md:mb-3 leading-tight">
-                                {results[currentIndex].name}
-                              </h3>
+                              <div className="border-t border-slate-100 pt-3 md:pt-4 mb-3 md:mb-4">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Objet</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight">
+                                  {results[currentIndex].name}
+                                </h3>
+                              </div>
                               <p className="text-slate-600 text-sm md:text-base leading-relaxed">
                                 {results[currentIndex].description}
                               </p>
                             </div>
-                            
+
                             <div className="mt-4 pt-4 flex items-center justify-between border-t border-slate-100 shrink-0">
                               <div className="flex items-center gap-1.5 text-xs md:text-sm font-medium text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
                                 <CheckCircle2 size={16} className={
                                   results[currentIndex].confidence === 'High' ? 'text-emerald-500' :
-                                  results[currentIndex].confidence === 'Medium' ? 'text-amber-500' : 'text-red-500'
+                                    results[currentIndex].confidence === 'Medium' ? 'text-amber-500' : 'text-red-500'
                                 } />
                                 {results[currentIndex].confidence} Confidence
                               </div>
@@ -353,9 +359,9 @@ export default function App() {
                           </motion.div>
                         </AnimatePresence>
                       </div>
-                      
+
                       <div className="flex justify-center gap-6 mt-6 md:mt-8 mb-4">
-                        <button 
+                        <button
                           onClick={() => {
                             setExitX(-200);
                             setTimeout(() => handleSwipe('left'), 200);
@@ -364,7 +370,7 @@ export default function App() {
                         >
                           <X size={28} strokeWidth={3} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => {
                             setExitX(200);
                             setTimeout(() => handleSwipe('right'), 200);
@@ -388,9 +394,8 @@ export default function App() {
                               <h4 className="font-semibold text-slate-900">{toy.name}</h4>
                               <p className="text-sm text-slate-500">{toy.category}</p>
                             </div>
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                              decisions[idx] === 'good' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
-                            }`}>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${decisions[idx] === 'good' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
+                              }`}>
                               {decisions[idx] === 'good' ? <Check size={20} /> : <X size={20} />}
                             </div>
                           </div>

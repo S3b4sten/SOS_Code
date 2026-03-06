@@ -12,7 +12,7 @@ export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [decisions, setDecisions] = useState<Record<number, 'good' | 'bad'>>({});
   const [exitX, setExitX] = useState<number>(0);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -21,8 +21,8 @@ export default function App() {
   const startCamera = async () => {
     try {
       setError(null);
-      const newStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
       });
       setStream(newStream);
       if (videoRef.current) {
@@ -31,7 +31,7 @@ export default function App() {
       setIsCameraActive(true);
     } catch (err) {
       console.error("Error accessing camera:", err);
-      setError("Could not access the camera. Please check permissions or upload a photo instead.");
+      setError("Impossible d'accéder à la caméra. Vérifiez les autorisations ou téléversez une photo à la place.");
     }
   };
 
@@ -84,13 +84,13 @@ export default function App() {
 
   const handleAnalyze = async () => {
     if (!imageSrc || !mimeType) return;
-    
+
     setIsAnalyzing(true);
     setError(null);
     setCurrentIndex(0);
     setDecisions({});
     setExitX(0);
-    
+
     try {
       // Extract base64 data from data URL
       const base64Data = imageSrc.split(',')[1];
@@ -98,7 +98,7 @@ export default function App() {
       setResults(analysisResults);
     } catch (err) {
       console.error("Analysis failed:", err);
-      setError("Failed to analyze the image. Please try again.");
+      setError("Échec de l'analyse de l'image. Veuillez réessayer.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -128,7 +128,7 @@ export default function App() {
             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
               <Tag size={18} />
             </div>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">Toy Classifier</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">Classificateur de Jouets</h1>
           </div>
           {imageSrc && !isAnalyzing && (
             <button
@@ -136,7 +136,7 @@ export default function App() {
               className="text-sm font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1.5 transition-colors"
             >
               <RefreshCw size={16} />
-              Start Over
+              Recommencer
             </button>
           )}
         </div>
@@ -144,7 +144,7 @@ export default function App() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-start">
-          
+
           {/* Left Column: Image Input / Preview */}
           <div className="space-y-6 md:sticky md:top-24">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -153,23 +153,23 @@ export default function App() {
                   <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 mb-4">
                     <ImageIcon size={32} />
                   </div>
-                  <h2 className="text-lg font-medium text-slate-900 mb-2">Add a photo of toys</h2>
+                  <h2 className="text-lg font-medium text-slate-900 mb-2">Ajouter une photo de jouets</h2>
                   <p className="text-sm text-slate-500 mb-8 max-w-[250px]">
-                    Take a picture of toys on a table or upload an existing photo to identify them.
+                    Prenez une photo de jouets sur une table ou téléversez une photo existante pour les identifier.
                   </p>
-                  
+
                   <div className="flex flex-col w-full gap-3 sm:flex-row sm:justify-center">
                     <button
                       onClick={startCamera}
                       className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
                     >
                       <Camera size={18} />
-                      Take Photo
+                      Prendre une photo
                     </button>
-                    
+
                     <label className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors cursor-pointer shadow-sm">
                       <Upload size={18} />
-                      Upload Photo
+                      Téléverser une photo
                       <input
                         type="file"
                         accept="image/*"
@@ -192,7 +192,7 @@ export default function App() {
                       onClick={stopCamera}
                       className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white backdrop-blur-md rounded-full text-sm font-medium transition-colors"
                     >
-                      Cancel
+                      Annuler
                     </button>
                     <button
                       onClick={capturePhoto}
@@ -231,20 +231,20 @@ export default function App() {
                         <button
                           className="px-4 py-2 bg-white text-slate-900 rounded-lg text-sm font-medium shadow-lg pointer-events-none"
                         >
-                          Change Photo
+                          Changer la photo
                         </button>
                       </div>
                     )}
                   </div>
                 </div>
               )}
-              
+
               {/* Hidden canvas for capturing video frames */}
               <canvas ref={canvasRef} className="hidden" />
             </div>
 
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="p-4 bg-red-50 border border-red-200 rounded-xl flex gap-3 text-red-800"
@@ -261,7 +261,7 @@ export default function App() {
                 onClick={handleAnalyze}
                 className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-medium shadow-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 text-lg"
               >
-                Analyze Toys
+                Analyser les jouets
               </motion.button>
             )}
           </div>
@@ -278,9 +278,9 @@ export default function App() {
                   className="h-full min-h-[400px] bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center p-8 text-center"
                 >
                   <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">Analyzing your toys...</h3>
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">Analyse en cours...</h3>
                   <p className="text-sm text-slate-500 max-w-[280px]">
-                    Our AI is scanning the image to identify each toy and categorize it. This might take a few seconds.
+                    Notre IA analyse l'image pour identifier chaque jouet et le catégoriser. Cela peut prendre quelques secondes.
                   </p>
                 </motion.div>
               ) : results ? (
@@ -292,7 +292,7 @@ export default function App() {
                 >
                   <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-semibold text-slate-900">
-                      Found {results.length} {results.length === 1 ? 'Toy' : 'Toys'}
+                      {results.length} {results.length === 1 ? 'Jouet trouvé' : 'Jouets trouvés'}
                     </h2>
                   </div>
 
@@ -301,9 +301,9 @@ export default function App() {
                       <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mx-auto mb-4">
                         <Info size={24} />
                       </div>
-                      <h3 className="text-lg font-medium text-slate-900 mb-1">No toys detected</h3>
+                      <h3 className="text-lg font-medium text-slate-900 mb-1">Aucun jouet détecté</h3>
                       <p className="text-sm text-slate-500">
-                        We couldn't clearly identify any toys in this image. Try taking a clearer photo with better lighting.
+                        Nous n'avons pas pu identifier clairement de jouets dans cette image. Essayez une photo plus nette avec un meilleur éclairage.
                       </p>
                     </div>
                   ) : currentIndex < results.length ? (
@@ -330,22 +330,28 @@ export default function App() {
                             }}
                           >
                             <div className="flex-1 overflow-y-auto pr-2">
-                              <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 mb-3 md:mb-4">
-                                {results[currentIndex].category}
+                              <div className="mb-3 md:mb-4">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-0.5">Catégorie</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-indigo-600 leading-tight">
+                                  {results[currentIndex].category}
+                                </h3>
                               </div>
-                              <h3 className="text-xl md:text-2xl font-bold text-slate-900 mb-2 md:mb-3 leading-tight">
-                                {results[currentIndex].name}
-                              </h3>
+                              <div className="border-t border-slate-100 pt-3 md:pt-4 mb-3 md:mb-4">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Objet</p>
+                                <h3 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight">
+                                  {results[currentIndex].name}
+                                </h3>
+                              </div>
                               <p className="text-slate-600 text-sm md:text-base leading-relaxed">
                                 {results[currentIndex].description}
                               </p>
                             </div>
-                            
+
                             <div className="mt-4 pt-4 flex items-center justify-between border-t border-slate-100 shrink-0">
                               <div className="flex items-center gap-1.5 text-xs md:text-sm font-medium text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
                                 <CheckCircle2 size={16} className={
                                   results[currentIndex].confidence === 'High' ? 'text-emerald-500' :
-                                  results[currentIndex].confidence === 'Medium' ? 'text-amber-500' : 'text-red-500'
+                                    results[currentIndex].confidence === 'Medium' ? 'text-amber-500' : 'text-red-500'
                                 } />
                                 {results[currentIndex].confidence} Confidence
                               </div>
@@ -353,9 +359,9 @@ export default function App() {
                           </motion.div>
                         </AnimatePresence>
                       </div>
-                      
+
                       <div className="flex justify-center gap-6 mt-6 md:mt-8 mb-4">
-                        <button 
+                        <button
                           onClick={() => {
                             setExitX(-200);
                             setTimeout(() => handleSwipe('left'), 200);
@@ -364,7 +370,7 @@ export default function App() {
                         >
                           <X size={28} strokeWidth={3} />
                         </button>
-                        <button 
+                        <button
                           onClick={() => {
                             setExitX(200);
                             setTimeout(() => handleSwipe('right'), 200);
@@ -380,7 +386,7 @@ export default function App() {
                       <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mx-auto mb-4">
                         <Check size={32} strokeWidth={3} />
                       </div>
-                      <h3 className="text-xl font-bold text-slate-900 mb-6 text-center">Review Complete!</h3>
+                      <h3 className="text-xl font-bold text-slate-900 mb-6 text-center">Révision terminée !</h3>
                       <div className="space-y-3">
                         {results.map((toy, idx) => (
                           <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100">
@@ -388,9 +394,8 @@ export default function App() {
                               <h4 className="font-semibold text-slate-900">{toy.name}</h4>
                               <p className="text-sm text-slate-500">{toy.category}</p>
                             </div>
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                              decisions[idx] === 'good' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
-                            }`}>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${decisions[idx] === 'good' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
+                              }`}>
                               {decisions[idx] === 'good' ? <Check size={20} /> : <X size={20} />}
                             </div>
                           </div>
@@ -400,7 +405,7 @@ export default function App() {
                         onClick={reset}
                         className="mt-8 w-full py-3.5 bg-indigo-600 text-white rounded-xl font-medium shadow-sm hover:bg-indigo-700 transition-colors"
                       >
-                        Start New Analysis
+                        Nouvelle analyse
                       </button>
                     </div>
                   )}
@@ -411,9 +416,9 @@ export default function App() {
                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-400 mx-auto mb-4 shadow-sm">
                       <Tag size={24} />
                     </div>
-                    <h3 className="text-base font-medium text-slate-900 mb-1">Ready to analyze</h3>
+                    <h3 className="text-base font-medium text-slate-900 mb-1">Prêt à analyser</h3>
                     <p className="text-sm text-slate-500">
-                      Take a photo or upload an image to see the identified toys and their categories here.
+                      Prenez une photo ou téléversez une image pour voir les jouets identifiés et leurs catégories ici.
                     </p>
                   </div>
                 </div>
