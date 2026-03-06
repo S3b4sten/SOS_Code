@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export interface ToyAnalysisResult {
   name: string;
@@ -11,48 +11,50 @@ export interface ToyAnalysisResult {
 }
 
 export async function analyzeToys(base64Image: string, mimeType: string): Promise<ToyAnalysisResult[]> {
-  const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
-    contents: {
-      parts: [
-        {
-          inlineData: {
-            data: base64Image,
-            mimeType: mimeType,
+  try {
+    const key = process.env.GEMINI_API_KEY;
+    console.log("API Key status:", key ? `Loaded (starts with ${key.slice(0, 8)}...)` : "UNDEFINED - clé manquante!");
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Image,
+              mimeType: mimeType,
+            },
           },
-        },
-        {
-          text: "Identify all the toys in this image. Return a list where EACH individual toy is a separate item in the array. Do not group them together into one item. For each individual toy, provide its specific name, a suitable category (e.g., Action Figure, Vehicle, Puzzle, Educational, Plush, Building Blocks), a brief description, your confidence level in the identification, and a bounding box `box2d` representing its location in the image as [ymin, xmin, ymax, xmax] with values normalized between 0.0 and 1.0.",
-        },
-      ],
-    },
-    config: {
-      systemInstruction: "You are an expert toy appraiser. You must return a JSON array where each element represents exactly one toy. Never group multiple toys into a single object.",
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING, description: "The specific name or type of the toy." },
-            category: { type: Type.STRING, description: "The general category the toy belongs to." },
-            description: { type: Type.STRING, description: "A brief description of the toy's appearance or function." },
-            confidence: { type: Type.STRING, description: "Confidence level of the identification (High, Medium, Low)." },
-            box2d: {
-              type: Type.ARRAY,
-              items: { type: Type.NUMBER },
-              description: "Bounding box [ymin, xmin, ymax, xmax] normalized between 0.0 and 1.0"
+          {
+            text: "Identify all the toys in this image. Return a list where EACH individual toy is a separate item in the array. Do not group them together into one item. For each individual toy, provide its specific name, a suitable category (e.g., Action Figure, Vehicle, Puzzle, Educational, Plush, Building Blocks), a brief description, your confidence level in the identification, and a bounding box `box2d` representing its location in the image as [ymin, xmin, ymax, xmax] with values normalized between 0.0 and 1.0.",
+          },
+        ],
+      },
+      config: {
+        systemInstruction: "You are an expert toy appraiser. You must return a JSON array where each element represents exactly one toy. Never group multiple toys into a single object.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING, description: "The specific name or type of the toy." },
+              category: { type: Type.STRING, description: "The general category the toy belongs to." },
+              description: { type: Type.STRING, description: "A brief description of the toy's appearance or function." },
+              confidence: { type: Type.STRING, description: "Confidence level of the identification (High, Medium, Low)." },
+              box2d: {
+                type: Type.ARRAY,
+                items: { type: Type.NUMBER },
+                description: "Bounding box [ymin, xmin, ymax, xmax] normalized between 0.0 and 1.0"
+              },
             },
           },
         },
       },
-    },
-  });
+    });
 
-  try {
     return JSON.parse(response.text || "[]");
   } catch (e) {
-    console.error("Failed to parse JSON response", e);
-    return [];
+    console.error("Gemini API error or JSON parse error:", e);
+    throw e; // Re-throw so App.tsx can show the error message
   }
 }
