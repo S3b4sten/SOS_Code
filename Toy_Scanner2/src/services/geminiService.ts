@@ -8,6 +8,8 @@ export interface ToyAnalysisResult {
   description: string;
   confidence: string;
   box2d: [number, number, number, number];
+  priceMin: number;
+  priceMax: number;
 }
 
 export async function analyzeToys(base64Image: string, mimeType: string): Promise<ToyAnalysisResult[]> {
@@ -22,7 +24,7 @@ export async function analyzeToys(base64Image: string, mimeType: string): Promis
           },
         },
         {
-          text: "Identifie tous les jouets dans cette image. Retourne une liste où CHAQUE jouet individuel est un élément séparé du tableau. Ne les regroupe pas. Pour chaque jouet, fournis : son nom spécifique, une catégorie appropriée (ex : Figurine d'action, Véhicule, Puzzle, Éducatif, Peluche, Blocs de construction), une brève description, ton niveau de confiance dans l'identification (Élevée, Moyenne, Faible), et OBLIGATOIREMENT une boîte englobante `box2d` sous la forme [ymin, xmin, ymax, xmax] avec des valeurs normalisées entre 0.0 et 1.0. Le champ box2d est REQUIS pour chaque jouet sans exception. Réponds UNIQUEMENT en français.",
+          text: "Identifie tous les jouets dans cette image. Retourne une liste où CHAQUE jouet individuel est un élément séparé du tableau. Ne les regroupe pas. Pour chaque jouet, fournis : son nom spécifique, une catégorie appropriée (ex : Figurine d'action, Véhicule, Puzzle, Éducatif, Peluche, Blocs de construction), une brève description, ton niveau de confiance dans l'identification (Élevée, Moyenne, Faible), OBLIGATOIREMENT une boîte englobante `box2d` sous la forme [ymin, xmin, ymax, xmax] avec des valeurs normalisées entre 0.0 et 1.0, et une estimation du prix de revente en occasion sur le marché canadien en dollars canadiens sous forme de fourchette (priceMin et priceMax en CAD). Le champ box2d est REQUIS pour chaque jouet sans exception. Réponds UNIQUEMENT en français.",
         },
       ],
     },
@@ -43,8 +45,10 @@ export async function analyzeToys(base64Image: string, mimeType: string): Promis
               items: { type: Type.NUMBER },
               description: "REQUIRED bounding box [ymin, xmin, ymax, xmax] normalized between 0.0 and 1.0. Must always be provided."
             },
+            priceMin: { type: Type.NUMBER, description: "Estimated minimum resale price in CAD for this toy in used condition." },
+            priceMax: { type: Type.NUMBER, description: "Estimated maximum resale price in CAD for this toy in used condition." },
           },
-          required: ["name", "category", "description", "confidence", "box2d"],
+          required: ["name", "category", "description", "confidence", "box2d", "priceMin", "priceMax"],
         },
       },
     },

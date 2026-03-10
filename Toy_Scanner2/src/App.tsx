@@ -361,6 +361,11 @@ export default function App() {
                                 } />
                                 Confiance {results[currentIndex].confidence}
                               </div>
+                              {(results[currentIndex].priceMin != null || results[currentIndex].priceMax != null) && (
+                                <div className="flex items-center gap-1.5 text-xs md:text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">
+                                  {results[currentIndex].priceMin ?? '?'}$ – {results[currentIndex].priceMax ?? '?'}$ CAD
+                                </div>
+                              )}
                             </div>
                           </motion.div>
                         </AnimatePresence>

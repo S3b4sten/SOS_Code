@@ -11,6 +11,8 @@ type Book = {
   year: string;
   edition: string;
   category: string;
+  priceMin: number;
+  priceMax: number;
 };
 
 export default function App() {
@@ -46,7 +48,7 @@ export default function App() {
       // Convert to base64 for the API
       const base64 = await convertFileToBase64(file);
       const base64Data = base64.split(',')[1];
-      
+
       await analyzeBookshelf(base64Data, file.type);
     } catch (err) {
       console.error(err);
@@ -78,7 +80,7 @@ export default function App() {
               },
             },
             {
-              text: "Analyse cette image d'une rangée de livres. Identifie chaque livre en lisant sa reliure (le dos du livre). Ensuite, trouve l'année de publication originale, l'édition (si possible, sinon laisse vide) et la meilleure catégorie parmi cette liste : Policier / Thriller, Science-Fiction, Fantasy / Fantastique, Historique, BD / Manga, Biographie, Romance, Essai, Jeunesse, Roman Graphique. Retourne un tableau JSON d'objets, où chaque objet a les propriétés 'title' (titre), 'author' (auteur), 'year' (année), 'edition' (édition) et 'category' (catégorie).",
+              text: "Analyse cette image d'une rangée de livres. Identifie chaque livre en lisant sa reliure (le dos du livre). Ensuite, trouve l'année de publication originale, l'édition (si possible, sinon laisse vide), la meilleure catégorie parmi cette liste : Policier / Thriller, Science-Fiction, Fantasy / Fantastique, Historique, BD / Manga, Biographie, Romance, Essai, Jeunesse, Roman Graphique, et une estimation du prix de revente en occasion sur le marché canadien en dollars canadiens (priceMin et priceMax en CAD). Retourne un tableau JSON d'objets, où chaque objet a les propriétés 'title' (titre), 'author' (auteur), 'year' (année), 'edition' (édition), 'category' (catégorie), 'priceMin' et 'priceMax'.",
             },
           ],
         },
@@ -110,8 +112,16 @@ export default function App() {
                   type: Type.STRING,
                   description: "La catégorie du livre parmi la liste fournie.",
                 },
+                priceMin: {
+                  type: Type.NUMBER,
+                  description: "Estimated minimum resale price in CAD for this book in used condition.",
+                },
+                priceMax: {
+                  type: Type.NUMBER,
+                  description: "Estimated maximum resale price in CAD for this book in used condition.",
+                },
               },
-              required: ["title", "author", "year", "edition", "category"],
+              required: ["title", "author", "year", "edition", "category", "priceMin", "priceMax"],
             },
           },
         },
@@ -132,9 +142,9 @@ export default function App() {
 
   const handleSwipeAction = (direction: 'left' | 'right') => {
     if (currentIndex >= books.length) return;
-    
+
     setExitX(direction === 'left' ? -500 : 500);
-    
+
     setTimeout(() => {
       if (direction === 'right') {
         setLikedBooks(prev => [...prev, books[currentIndex]]);
@@ -171,7 +181,7 @@ export default function App() {
             <h1 className="text-2xl font-bold tracking-tight text-stone-900">BiblioScan</h1>
           </div>
           {image && (
-            <button 
+            <button
               onClick={resetApp}
               className="text-sm font-bold text-stone-700 hover:text-stone-900 hover:bg-stone-100 px-3 py-2 rounded-lg flex items-center gap-2 transition-colors border border-stone-300 shadow-sm"
             >
@@ -185,7 +195,7 @@ export default function App() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <AnimatePresence mode="wait">
           {!image ? (
-            <motion.div 
+            <motion.div
               key="upload-view"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -203,7 +213,7 @@ export default function App() {
 
               <div className="bg-white p-6 sm:p-10 rounded-3xl shadow-md border-2 border-stone-300 text-center">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <button 
+                  <button
                     onClick={() => fileInputRef.current?.click()}
                     className="flex flex-col items-center justify-center gap-4 p-8 rounded-2xl border-4 border-dashed border-stone-300 hover:border-emerald-600 hover:bg-emerald-50 focus:ring-4 focus:ring-emerald-200 focus:outline-none transition-all group shadow-sm"
                   >
@@ -216,7 +226,7 @@ export default function App() {
                     </div>
                   </button>
 
-                  <button 
+                  <button
                     onClick={() => {
                       if (fileInputRef.current) {
                         fileInputRef.current.setAttribute('capture', 'environment');
@@ -235,11 +245,11 @@ export default function App() {
                     </div>
                   </button>
                 </div>
-                
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
                   ref={fileInputRef}
                   onChange={handleFileChange}
                 />
@@ -270,7 +280,7 @@ export default function App() {
               </div>
             </motion.div>
           ) : (
-            <motion.div 
+            <motion.div
               key="results-view"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -280,9 +290,9 @@ export default function App() {
               <div className="lg:col-span-5 space-y-4">
                 <div className="bg-white p-3 rounded-3xl shadow-md border-2 border-stone-300 sticky top-24">
                   <div className="relative rounded-2xl overflow-hidden bg-stone-200 aspect-[3/4] sm:aspect-auto sm:h-[600px] border border-stone-300">
-                    <img 
-                      src={image} 
-                      alt="Rangée de livres" 
+                    <img
+                      src={image}
+                      alt="Rangée de livres"
                       className="w-full h-full object-cover"
                     />
                     {loading && (
@@ -332,7 +342,7 @@ export default function App() {
                         </div>
                         <h3 className="text-2xl font-bold text-stone-900 mb-3">Oups !</h3>
                         <p className="text-lg font-medium text-stone-700 mb-8 max-w-md">{error}</p>
-                        <button 
+                        <button
                           onClick={resetApp}
                           className="bg-stone-900 text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-stone-800 focus:ring-4 focus:ring-stone-300 transition-all shadow-md"
                         >
@@ -394,20 +404,28 @@ export default function App() {
                                   </span>
                                 </div>
                               </div>
+                              {(books[currentIndex].priceMin != null || books[currentIndex].priceMax != null) && (
+                                <div className="mt-3 flex items-center justify-center gap-2 bg-emerald-50 border-2 border-emerald-200 rounded-xl px-4 py-2.5">
+                                  <span className="text-emerald-700 text-lg"></span>
+                                  <span className="font-extrabold text-emerald-800 text-base">
+                                    {books[currentIndex].priceMin ?? '?'}$ – {books[currentIndex].priceMax ?? '?'}$ CAD
+                                  </span>
+                                </div>
+                              )}
                             </motion.div>
                           </AnimatePresence>
                         </div>
-                        
+
                         <div className="flex justify-center gap-8 mt-10">
-                          <button 
-                            onClick={() => handleSwipeAction('left')} 
+                          <button
+                            onClick={() => handleSwipeAction('left')}
                             className="w-20 h-20 bg-white rounded-full shadow-lg flex items-center justify-center text-red-600 hover:bg-red-50 hover:scale-105 focus:ring-4 focus:ring-red-200 transition-all border-2 border-red-200"
                             aria-label="Ignorer ce livre"
                           >
                             <X size={40} strokeWidth={3} />
                           </button>
-                          <button 
-                            onClick={() => handleSwipeAction('right')} 
+                          <button
+                            onClick={() => handleSwipeAction('right')}
                             className="w-20 h-20 bg-white rounded-full shadow-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 hover:scale-105 focus:ring-4 focus:ring-emerald-200 transition-all border-2 border-emerald-200"
                             aria-label="Retenir ce livre"
                           >
@@ -473,9 +491,9 @@ export default function App() {
                             </div>
                           )}
                         </div>
-                        
+
                         <div className="mt-2 pt-6 border-t-2 border-stone-200 flex justify-center">
-                          <button 
+                          <button
                             onClick={resetApp}
                             className="bg-stone-900 text-white px-10 py-4 rounded-full font-bold text-xl hover:bg-stone-800 focus:ring-4 focus:ring-stone-300 transition-all shadow-lg flex items-center gap-3 hover:scale-105"
                           >
