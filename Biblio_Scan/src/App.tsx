@@ -13,6 +13,7 @@ type Book = {
   category: string;
   priceMin: number;
   priceMax: number;
+  box2d?: [number, number, number, number]; // [ymin, xmin, ymax, xmax] normalized 0-1
 };
 
 export default function App() {
@@ -80,7 +81,7 @@ export default function App() {
               },
             },
             {
-              text: "Analyse cette image d'une rangée de livres. Identifie chaque livre en lisant sa reliure (le dos du livre). Ensuite, trouve l'année de publication originale, l'édition (si possible, sinon laisse vide), la meilleure catégorie parmi cette liste : Policier / Thriller, Science-Fiction, Fantasy / Fantastique, Historique, BD / Manga, Biographie, Romance, Essai, Jeunesse, Roman Graphique, et une estimation du prix de revente en occasion sur le marché canadien en dollars canadiens (priceMin et priceMax en CAD). Retourne un tableau JSON d'objets, où chaque objet a les propriétés 'title' (titre), 'author' (auteur), 'year' (année), 'edition' (édition), 'category' (catégorie), 'priceMin' et 'priceMax'.",
+              text: "Analyse cette image d'une rangée de livres. Identifie chaque livre en lisant sa reliure (le dos du livre). Ensuite, trouve l'année de publication originale, l'édition (si possible, sinon laisse vide), la meilleure catégorie parmi cette liste : Policier / Thriller, Science-Fiction, Fantasy / Fantastique, Historique, BD / Manga, Biographie, Romance, Essai, Jeunesse, Roman Graphique, et une estimation du prix de revente en occasion sur le marché canadien en dollars canadiens (priceMin et priceMax en CAD). Pour chaque livre, fournis également 'box2d' : un tableau de 4 valeurs normalisées [ymin, xmin, ymax, xmax] entre 0 et 1, indiquant la position de la reliure du livre dans l'image. Retourne un tableau JSON d'objets avec les propriétés 'title', 'author', 'year', 'edition', 'category', 'priceMin', 'priceMax' et 'box2d'.",
             },
           ],
         },
@@ -120,8 +121,13 @@ export default function App() {
                   type: Type.NUMBER,
                   description: "Estimated maximum resale price in CAD for this book in used condition.",
                 },
+                box2d: {
+                  type: Type.ARRAY,
+                  description: "Bounding box of the book spine in the image, as [ymin, xmin, ymax, xmax] normalized between 0 and 1.",
+                  items: { type: Type.NUMBER },
+                },
               },
-              required: ["title", "author", "year", "edition", "category", "priceMin", "priceMax"],
+              required: ["title", "author", "year", "edition", "category", "priceMin", "priceMax", "box2d"],
             },
           },
         },
@@ -289,12 +295,29 @@ export default function App() {
               {/* Image Preview Column */}
               <div className="lg:col-span-5 space-y-4">
                 <div className="bg-white p-3 rounded-3xl shadow-md border-2 border-stone-300 sticky top-24">
-                  <div className="relative rounded-2xl overflow-hidden bg-stone-200 aspect-[3/4] sm:aspect-auto sm:h-[600px] border border-stone-300">
-                    <img
-                      src={image}
-                      alt="Rangée de livres"
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="relative rounded-2xl overflow-hidden bg-stone-200 border border-stone-300 flex items-center justify-center">
+                    <div className="relative w-full">
+                      <img
+                        src={image}
+                        alt="Rangée de livres"
+                        className="w-full h-auto block max-h-[70vh] object-contain"
+                      />
+                      {!loading && books.length > 0 && currentIndex < books.length && books[currentIndex].box2d && (
+                        <motion.div
+                          layoutId="highlight-box"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.3, type: "spring" }}
+                          className="absolute bg-emerald-500/40 border-4 border-emerald-400 rounded-xl shadow-[0_0_20px_rgba(52,211,153,0.6)] z-10 pointer-events-none"
+                          style={{
+                            top: `${books[currentIndex].box2d![0] * 100}%`,
+                            left: `${books[currentIndex].box2d![1] * 100}%`,
+                            height: `${(books[currentIndex].box2d![2] - books[currentIndex].box2d![0]) * 100}%`,
+                            width: `${(books[currentIndex].box2d![3] - books[currentIndex].box2d![1]) * 100}%`,
+                          }}
+                        />
+                      )}
+                    </div>
                     {loading && (
                       <div className="absolute inset-0 bg-stone-900/70 backdrop-blur-md flex flex-col items-center justify-center text-white">
                         <Loader2 size={56} className="animate-spin mb-6 text-emerald-400" strokeWidth={3} />
