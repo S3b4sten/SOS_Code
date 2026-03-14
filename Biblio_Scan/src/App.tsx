@@ -290,34 +290,33 @@ export default function App() {
               key="results-view"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-1 lg:grid-cols-12 gap-8"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:items-start"
             >
-              {/* Image Preview Column */}
-              <div className="lg:col-span-5 space-y-4">
+              {/* Image Preview Column — width = half screen, height = natural image height */}
+              <div>
                 <div className="bg-white p-3 rounded-3xl shadow-md border-2 border-stone-300 sticky top-24">
-                  <div className="relative rounded-2xl overflow-hidden bg-stone-200 border border-stone-300 flex items-center justify-center">
-                    <div className="relative w-full">
-                      <img
-                        src={image}
-                        alt="Rangée de livres"
-                        className="w-full h-auto block max-h-[70vh] object-contain"
+                  {/* Container matches the image exactly — no letterboxing, bounding boxes align perfectly */}
+                  <div className="relative rounded-2xl overflow-hidden bg-stone-200 border border-stone-300">
+                    <img
+                      src={image}
+                      alt="Rangée de livres"
+                      className="w-full h-auto block"
+                    />
+                    {!loading && books.length > 0 && currentIndex < books.length && books[currentIndex].box2d && (
+                      <motion.div
+                        layoutId="highlight-box"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3, type: "spring" }}
+                        className="absolute bg-emerald-500/40 border-4 border-emerald-400 rounded-xl shadow-[0_0_20px_rgba(52,211,153,0.6)] z-10 pointer-events-none"
+                        style={{
+                          top: `${books[currentIndex].box2d![0] * 100}%`,
+                          left: `${books[currentIndex].box2d![1] * 100}%`,
+                          height: `${(books[currentIndex].box2d![2] - books[currentIndex].box2d![0]) * 100}%`,
+                          width: `${(books[currentIndex].box2d![3] - books[currentIndex].box2d![1]) * 100}%`,
+                        }}
                       />
-                      {!loading && books.length > 0 && currentIndex < books.length && books[currentIndex].box2d && (
-                        <motion.div
-                          layoutId="highlight-box"
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ duration: 0.3, type: "spring" }}
-                          className="absolute bg-emerald-500/40 border-4 border-emerald-400 rounded-xl shadow-[0_0_20px_rgba(52,211,153,0.6)] z-10 pointer-events-none"
-                          style={{
-                            top: `${books[currentIndex].box2d![0] * 100}%`,
-                            left: `${books[currentIndex].box2d![1] * 100}%`,
-                            height: `${(books[currentIndex].box2d![2] - books[currentIndex].box2d![0]) * 100}%`,
-                            width: `${(books[currentIndex].box2d![3] - books[currentIndex].box2d![1]) * 100}%`,
-                          }}
-                        />
-                      )}
-                    </div>
+                    )}
                     {loading && (
                       <div className="absolute inset-0 bg-stone-900/70 backdrop-blur-md flex flex-col items-center justify-center text-white">
                         <Loader2 size={56} className="animate-spin mb-6 text-emerald-400" strokeWidth={3} />
@@ -330,7 +329,7 @@ export default function App() {
               </div>
 
               {/* Results Column */}
-              <div className="lg:col-span-7">
+              <div>
                 <div className="bg-white rounded-3xl shadow-md border-2 border-stone-300 overflow-hidden min-h-[600px] flex flex-col">
                   <div className="p-6 sm:p-8 border-b-2 border-stone-200 flex items-center justify-between bg-stone-100">
                     <div>
