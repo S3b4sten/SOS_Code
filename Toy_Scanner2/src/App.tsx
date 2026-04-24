@@ -1,7 +1,19 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Upload, Loader2, Image as ImageIcon, RefreshCw, AlertCircle, Tag, Info, CheckCircle2, X, Check } from 'lucide-react';
+import { Camera, Upload, Loader2, Image as ImageIcon, RefreshCw, AlertCircle, Tag, Info, CheckCircle2, Check, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { analyzeToys, ToyAnalysisResult } from './services/geminiService';
+import { addItem, listItems, updateQuantity, getStats, type InventoryItem } from './store/inventoryStore';
+import InventoryView from './views/InventoryView';
+
+type ConfirmationDraft = Pick<ToyAnalysisResult, 'name' | 'category' | 'description' | 'priceMin' | 'priceMax'> & {
+  quantity: number;
+};
+
+type ProcessedStatus = 'added' | 'skipped' | 'incremented';
+
+function normalizeItemKey(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
 
 export default function App() {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -10,13 +22,16 @@ export default function App() {
   const [results, setResults] = useState<ToyAnalysisResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [decisions, setDecisions] = useState<Record<number, 'good' | 'bad'>>({});
-  const [exitX, setExitX] = useState<number>(0);
+  const [editableItems, setEditableItems] = useState<ConfirmationDraft[]>([]);
+  const [processedItems, setProcessedItems] = useState<Record<number, ProcessedStatus>>({});
+  const [inventorySnapshot, setInventorySnapshot] = useState<InventoryItem[]>([]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [currentView, setCurrentView] = useState<'scanner' | 'inventory'>('scanner');
+  const [, setInventoryVersion] = useState(0);
 
   const startCamera = async () => {
     try {
@@ -43,7 +58,6 @@ export default function App() {
     setIsCameraActive(false);
   }, [stream]);
 
-  // Cleanup camera on unmount
   useEffect(() => {
     return () => {
       if (stream) {
@@ -88,20 +102,30 @@ export default function App() {
     setIsAnalyzing(true);
     setError(null);
     setCurrentIndex(0);
-    setDecisions({});
-    setExitX(0);
+    setEditableItems([]);
+    setProcessedItems({});
+    setInventorySnapshot([]);
 
     try {
-      // Extract base64 data from data URL
       const base64Data = imageSrc.split(',')[1];
       const analysisResults = await analyzeToys(base64Data, mimeType);
-      // Tri: haut→bas, gauche→droite (objets sur la même « ligne » regroupés par ymin similaire)
       const sorted = [...analysisResults].sort((a, b) => {
         const rowDiff = a.box2d[0] - b.box2d[0];
-        if (Math.abs(rowDiff) > 0.15) return rowDiff; // lignes différentes
-        return a.box2d[1] - b.box2d[1];               // même ligne → tri par xmin
+        if (Math.abs(rowDiff) > 0.15) return rowDiff;
+        return a.box2d[1] - b.box2d[1];
       });
+
       setResults(sorted);
+      setEditableItems(sorted.map(item => ({
+        name: item.name,
+        category: item.category,
+        description: item.description,
+        priceMin: item.priceMin,
+        priceMax: item.priceMax,
+        quantity: 1,
+      })));
+      setProcessedItems({});
+      setInventorySnapshot(listItems());
     } catch (err) {
       console.error("Analysis failed:", err);
       setError("Échec de l'analyse de l'image. Veuillez réessayer.");
@@ -116,14 +140,71 @@ export default function App() {
     setResults(null);
     setError(null);
     setCurrentIndex(0);
-    setDecisions({});
-    setExitX(0);
+    setEditableItems([]);
+    setProcessedItems({});
+    setInventorySnapshot([]);
     stopCamera();
   };
 
-  const handleSwipe = (direction: 'left' | 'right') => {
-    setDecisions(prev => ({ ...prev, [currentIndex]: direction === 'right' ? 'good' : 'bad' }));
+  const inventoryStats = getStats();
+  const refreshInventory = useCallback(() => setInventoryVersion((v: number) => v + 1), []);
+
+  const updateDraftField = <K extends keyof ConfirmationDraft>(index: number, field: K, value: ConfirmationDraft[K]) => {
+    setEditableItems(prev => prev.map((item, itemIndex) => (
+      itemIndex === index ? { ...item, [field]: value } : item
+    )));
+  };
+
+  const syncInventorySnapshot = (nextItem: InventoryItem) => {
+    setInventorySnapshot(prev => {
+      const existingIndex = prev.findIndex(item => item.id === nextItem.id);
+      if (existingIndex === -1) return [...prev, nextItem];
+      return prev.map((item, index) => index === existingIndex ? nextItem : item);
+    });
+  };
+
+  const goToNextItem = (status: ProcessedStatus) => {
+    setProcessedItems(prev => ({ ...prev, [currentIndex]: status }));
     setCurrentIndex(prev => prev + 1);
+  };
+
+  const currentDraft = results ? editableItems[currentIndex] : undefined;
+  const existingItem = currentDraft
+    ? inventorySnapshot.find(item =>
+      normalizeItemKey(item.name) === normalizeItemKey(currentDraft.name) &&
+      normalizeItemKey(item.category) === normalizeItemKey(currentDraft.category)
+    )
+    : undefined;
+  const hasInvalidQuantity = currentDraft ? currentDraft.quantity <= 0 : false;
+  const addedCount = Object.values(processedItems).filter(status => status === 'added' || status === 'incremented').length;
+  const skippedCount = Object.values(processedItems).filter(status => status === 'skipped').length;
+
+  const handleSkip = () => {
+    goToNextItem('skipped');
+  };
+
+  const handleConfirmItem = () => {
+    if (!currentDraft || hasInvalidQuantity) return;
+
+    if (existingItem) {
+      updateQuantity(existingItem.id, currentDraft.quantity);
+      syncInventorySnapshot({
+        ...existingItem,
+        quantity: existingItem.quantity + currentDraft.quantity,
+        lastMovementAt: Date.now(),
+      });
+      goToNextItem('incremented');
+      refreshInventory();
+      return;
+    }
+
+    const newItem = addItem({
+      ...currentDraft,
+      imageThumb: imageSrc ?? undefined,
+    });
+    syncInventorySnapshot(newItem);
+    goToNextItem('added');
+    refreshInventory();
   };
 
   return (
@@ -136,22 +217,52 @@ export default function App() {
             </div>
             <h1 className="text-xl font-semibold tracking-tight text-slate-900">Classificateur de Jouets</h1>
           </div>
-          {imageSrc && !isAnalyzing && (
-            <button
-              onClick={reset}
-              className="text-sm font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1.5 transition-colors"
-            >
-              <RefreshCw size={16} />
-              Recommencer
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+              <button
+                onClick={() => setCurrentView('scanner')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  currentView === 'scanner'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Camera size={16} />
+                Scanner
+              </button>
+              <button
+                onClick={() => setCurrentView('inventory')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  currentView === 'inventory'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Package size={16} />
+                Inventaire
+                {inventoryStats.totalItems > 0 && (
+                  <span className="ml-1 min-w-[20px] h-5 px-1.5 bg-indigo-600 text-white text-xs rounded-full flex items-center justify-center leading-none">
+                    {inventoryStats.totalItems}
+                  </span>
+                )}
+              </button>
+            </div>
+            {imageSrc && !isAnalyzing && currentView === 'scanner' && (
+              <button
+                onClick={reset}
+                className="text-sm font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1.5 transition-colors"
+              >
+                <RefreshCw size={16} />
+                Recommencer
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {currentView === 'scanner' ? (
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 md:pb-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-start">
-
-          {/* Left Column: Image Input / Preview */}
           <div className="space-y-6 md:sticky md:top-24">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
               {!imageSrc && !isCameraActive ? (
@@ -245,7 +356,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Hidden canvas for capturing video frames */}
               <canvas ref={canvasRef} className="hidden" />
             </div>
 
@@ -272,7 +382,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Right Column: Results */}
           <div className="flex flex-col h-full">
             <AnimatePresence mode="wait">
               {isAnalyzing ? (
@@ -314,82 +423,143 @@ export default function App() {
                     </div>
                   ) : currentIndex < results.length ? (
                     <div className="flex flex-col items-center justify-center w-full mt-2 md:mt-4">
-                      <div className="relative w-full max-w-sm h-[350px] md:h-[400px]">
-                        <AnimatePresence mode="popLayout">
+                      <div className="relative w-full max-w-sm min-h-[350px]">
+                        <AnimatePresence mode="wait">
                           <motion.div
                             key={currentIndex}
                             initial={{ scale: 0.95, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ x: exitX, opacity: 0, rotate: exitX > 0 ? 15 : -15 }}
+                            exit={{ opacity: 0, y: -16 }}
                             transition={{ duration: 0.2 }}
-                            className="absolute inset-0 bg-white rounded-3xl shadow-xl border border-slate-200 p-6 flex flex-col cursor-grab active:cursor-grabbing"
-                            drag="x"
-                            dragConstraints={{ left: 0, right: 0 }}
-                            onDragEnd={(e, info) => {
-                              if (info.offset.x > 100) {
-                                setExitX(200);
-                                setTimeout(() => handleSwipe('right'), 200);
-                              } else if (info.offset.x < -100) {
-                                setExitX(-200);
-                                setTimeout(() => handleSwipe('left'), 200);
-                              }
-                            }}
+                            className="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 flex flex-col"
                           >
-                            <div className="flex-1 overflow-y-auto pr-2">
-                              <div className="mb-3 md:mb-4">
-                                <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-0.5">Catégorie</p>
-                                <h3 className="text-xl md:text-2xl font-bold text-indigo-600 leading-tight">
-                                  {results[currentIndex].category}
-                                </h3>
+                            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                              <div>
+                                <label className="block text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-1.5">
+                                  Nom
+                                </label>
+                                <input
+                                  type="text"
+                                  value={currentDraft?.name ?? ''}
+                                  onChange={(event) => updateDraftField(currentIndex, 'name', event.target.value)}
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                />
                               </div>
-                              <div className="border-t border-slate-100 pt-3 md:pt-4 mb-3 md:mb-4">
-                                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Objet</p>
-                                <h3 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight">
-                                  {results[currentIndex].name}
-                                </h3>
+
+                              <div>
+                                <label className="block text-xs font-semibold uppercase tracking-widest text-indigo-400 mb-1.5">
+                                  Catégorie
+                                </label>
+                                <input
+                                  type="text"
+                                  value={currentDraft?.category ?? ''}
+                                  onChange={(event) => updateDraftField(currentIndex, 'category', event.target.value)}
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                />
                               </div>
-                              <p className="text-slate-600 text-sm md:text-base leading-relaxed">
-                                {results[currentIndex].description}
-                              </p>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1.5">
+                                    Prix min
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={currentDraft?.priceMin ?? 0}
+                                    onChange={(event) => updateDraftField(currentIndex, 'priceMin', Number(event.target.value))}
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1.5">
+                                    Prix max
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={currentDraft?.priceMax ?? 0}
+                                    onChange={(event) => updateDraftField(currentIndex, 'priceMax', Number(event.target.value))}
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1.5">
+                                  Quantité à ajouter
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={currentDraft?.quantity ?? 1}
+                                  onChange={(event) => updateDraftField(currentIndex, 'quantity', Number(event.target.value))}
+                                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                />
+                                {hasInvalidQuantity && (
+                                  <p className="mt-2 text-sm text-red-600">La quantité doit être supérieure à 0.</p>
+                                )}
+                              </div>
+
+                              <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">
+                                  Description
+                                </p>
+                                <p className="text-slate-600 text-sm md:text-base leading-relaxed">
+                                  {results[currentIndex].description}
+                                </p>
+                              </div>
                             </div>
 
-                            <div className="mt-4 pt-4 flex items-center justify-between border-t border-slate-100 shrink-0">
-                              <div className="flex items-center gap-1.5 text-xs md:text-sm font-medium text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
-                                <CheckCircle2 size={16} className={
-                                  results[currentIndex].confidence === 'Élevée' ? 'text-emerald-500' :
-                                    results[currentIndex].confidence === 'Moyenne' ? 'text-amber-500' : 'text-red-500'
-                                } />
-                                Confiance {results[currentIndex].confidence}
+                            <div className="mt-4 pt-4 border-t border-slate-100 shrink-0 space-y-4">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex items-center gap-1.5 text-xs md:text-sm font-medium text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">
+                                  <CheckCircle2
+                                    size={16}
+                                    className={
+                                      results[currentIndex].confidence === 'Élevée'
+                                        ? 'text-emerald-500'
+                                        : results[currentIndex].confidence === 'Moyenne'
+                                          ? 'text-amber-500'
+                                          : 'text-red-500'
+                                    }
+                                  />
+                                  Confiance {results[currentIndex].confidence}
+                                </div>
+                                {(results[currentIndex].priceMin != null || results[currentIndex].priceMax != null) && (
+                                  <div className="flex items-center gap-1.5 text-xs md:text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">
+                                    Estimation Gemini {results[currentIndex].priceMin ?? '?'}$ - {results[currentIndex].priceMax ?? '?'}$ CAD
+                                  </div>
+                                )}
                               </div>
-                              {(results[currentIndex].priceMin != null || results[currentIndex].priceMax != null) && (
-                                <div className="flex items-center gap-1.5 text-xs md:text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">
-                                  {results[currentIndex].priceMin ?? '?'}$ – {results[currentIndex].priceMax ?? '?'}$ CAD
+
+                              {existingItem && (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                  Déjà en stock (qté : {existingItem.quantity}). La quantité saisie sera ajoutée au stock existant.
                                 </div>
                               )}
+
+                              <div className="flex gap-3">
+                                <button
+                                  onClick={handleSkip}
+                                  className="flex-1 rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                  Ignorer
+                                </button>
+                                <button
+                                  onClick={handleConfirmItem}
+                                  disabled={hasInvalidQuantity}
+                                  className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+                                >
+                                  {existingItem ? 'Incrémenter le stock' : 'Ajouter au stock'}
+                                </button>
+                              </div>
                             </div>
                           </motion.div>
                         </AnimatePresence>
-                      </div>
-
-                      <div className="flex justify-center gap-6 mt-6 md:mt-8 mb-4">
-                        <button
-                          onClick={() => {
-                            setExitX(-200);
-                            setTimeout(() => handleSwipe('left'), 200);
-                          }}
-                          className="w-14 h-14 md:w-16 md:h-16 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-red-500 hover:bg-red-50 hover:scale-110 transition-all"
-                        >
-                          <X size={28} strokeWidth={3} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setExitX(200);
-                            setTimeout(() => handleSwipe('right'), 200);
-                          }}
-                          className="w-14 h-14 md:w-16 md:h-16 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center text-emerald-500 hover:bg-emerald-50 hover:scale-110 transition-all"
-                        >
-                          <Check size={28} strokeWidth={3} />
-                        </button>
                       </div>
                     </div>
                   ) : (
@@ -398,20 +568,46 @@ export default function App() {
                         <Check size={32} strokeWidth={3} />
                       </div>
                       <h3 className="text-xl font-bold text-slate-900 mb-6 text-center">Révision terminée !</h3>
-                      <div className="space-y-3">
-                        {results.map((toy, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100">
-                            <div>
-                              <h4 className="font-semibold text-slate-900">{toy.name}</h4>
-                              <p className="text-sm text-slate-500">{toy.category}</p>
-                            </div>
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${decisions[idx] === 'good' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
-                              }`}>
-                              {decisions[idx] === 'good' ? <Check size={20} /> : <X size={20} />}
-                            </div>
-                          </div>
-                        ))}
+
+                      <div className="grid grid-cols-2 gap-3 mb-6">
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+                          <p className="text-sm text-emerald-700">Ajoutés</p>
+                          <p className="text-3xl font-bold text-emerald-900">{addedCount}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                          <p className="text-sm text-slate-600">Ignorés</p>
+                          <p className="text-3xl font-bold text-slate-900">{skippedCount}</p>
+                        </div>
                       </div>
+
+                      <div className="space-y-3">
+                        {results.map((toy, idx) => {
+                          const status = processedItems[idx];
+                          const statusLabel = status === 'incremented'
+                            ? 'Quantité incrémentée'
+                            : status === 'added'
+                              ? 'Ajouté'
+                              : 'Ignoré';
+                          const statusClasses = status === 'incremented'
+                            ? 'bg-amber-100 text-amber-700'
+                            : status === 'added'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-slate-200 text-slate-700';
+
+                          return (
+                            <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100">
+                              <div>
+                                <h4 className="font-semibold text-slate-900">{editableItems[idx]?.name ?? toy.name}</h4>
+                                <p className="text-sm text-slate-500">{editableItems[idx]?.category ?? toy.category}</p>
+                              </div>
+                              <div className={`px-3 py-2 rounded-lg text-sm font-medium shrink-0 ${statusClasses}`}>
+                                {statusLabel}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
                       <button
                         onClick={reset}
                         className="mt-8 w-full py-3.5 bg-indigo-600 text-white rounded-xl font-medium shadow-sm hover:bg-indigo-700 transition-colors"
@@ -438,6 +634,37 @@ export default function App() {
           </div>
         </div>
       </main>
+      ) : (
+        <InventoryView onMutate={refreshInventory} />
+      )}
+
+      <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 z-20 flex items-stretch h-16">
+        <button
+          onClick={() => setCurrentView('scanner')}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors ${
+            currentView === 'scanner' ? 'text-indigo-600' : 'text-slate-500'
+          }`}
+        >
+          <Camera size={22} />
+          Scanner
+        </button>
+        <button
+          onClick={() => setCurrentView('inventory')}
+          className={`flex-1 flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors ${
+            currentView === 'inventory' ? 'text-indigo-600' : 'text-slate-500'
+          }`}
+        >
+          <div className="relative">
+            <Package size={22} />
+            {inventoryStats.totalItems > 0 && (
+              <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 bg-indigo-600 text-white text-[10px] rounded-full flex items-center justify-center leading-none">
+                {inventoryStats.totalItems}
+              </span>
+            )}
+          </div>
+          Inventaire
+        </button>
+      </nav>
     </div>
   );
 }
