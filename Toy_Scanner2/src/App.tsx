@@ -1,9 +1,14 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Upload, Loader2, Image as ImageIcon, RefreshCw, AlertCircle, Tag, Info, CheckCircle2, X, Check } from 'lucide-react';
+import { Camera, Upload, Loader2, Image as ImageIcon, RefreshCw, AlertCircle, Tag, Info, CheckCircle2, X, Check, Lock, Unlock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { analyzeToys, ToyAnalysisResult } from './services/geminiService';
+import { getCurrentRole, login, logout, onActivity, subscribe, type AuthRole } from './store/authStore';
 
 export default function App() {
+  const [role, setRole] = useState<AuthRole>(() => getCurrentRole());
+  const [isPinOverlayOpen, setIsPinOverlayOpen] = useState(false);
+  const [pinValue, setPinValue] = useState('');
+  const [pinError, setPinError] = useState<string | null>(null);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -51,6 +56,39 @@ export default function App() {
       }
     };
   }, [stream]);
+
+  useEffect(() => {
+    return subscribe((nextRole, reason) => {
+      setRole(nextRole);
+      if (nextRole === 'operator') {
+        setIsPinOverlayOpen(false);
+        setPinValue('');
+        setPinError(reason === 'timeout' ? 'Session gestionnaire expirée.' : null);
+      } else {
+        setPinError(null);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (role !== 'manager') {
+      return;
+    }
+
+    const handleActivity = () => {
+      onActivity();
+    };
+
+    window.addEventListener('pointerdown', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('touchstart', handleActivity);
+
+    return () => {
+      window.removeEventListener('pointerdown', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('touchstart', handleActivity);
+    };
+  }, [role]);
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -126,6 +164,55 @@ export default function App() {
     setCurrentIndex(prev => prev + 1);
   };
 
+  const resetPinOverlay = useCallback(() => {
+    setPinValue('');
+    setPinError(null);
+  }, []);
+
+  const closePinOverlay = useCallback(() => {
+    setIsPinOverlayOpen(false);
+    resetPinOverlay();
+  }, [resetPinOverlay]);
+
+  const appendPinDigit = useCallback((digit: string) => {
+    setPinValue((current) => {
+      if (current.length >= 4) {
+        return current;
+      }
+
+      return `${current}${digit}`;
+    });
+    setPinError(null);
+  }, []);
+
+  const removeLastPinDigit = useCallback(() => {
+    setPinValue((current) => current.slice(0, -1));
+    setPinError(null);
+  }, []);
+
+  const handlePinSubmit = useCallback(async () => {
+    if (role === 'manager') {
+      logout();
+      return;
+    }
+
+    if (pinValue.length !== 4) {
+      setPinError('Entrez un PIN à 4 chiffres.');
+      return;
+    }
+
+    const didLogin = await login(pinValue);
+    if (!didLogin) {
+      setPinError('PIN incorrect.');
+      setPinValue('');
+      return;
+    }
+
+    setIsPinOverlayOpen(false);
+    setPinValue('');
+    setPinError(null);
+  }, [pinValue, role]);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
@@ -136,17 +223,154 @@ export default function App() {
             </div>
             <h1 className="text-xl font-semibold tracking-tight text-slate-900">Classificateur de Jouets</h1>
           </div>
-          {imageSrc && !isAnalyzing && (
+          <div className="flex items-center gap-2">
+            {role === 'manager' && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                <Unlock size={14} />
+                Gestionnaire
+              </span>
+            )}
             <button
-              onClick={reset}
-              className="text-sm font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1.5 transition-colors"
+              type="button"
+              onClick={() => {
+                setIsPinOverlayOpen(true);
+                setPinError(null);
+              }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
+              aria-label={role === 'manager' ? 'Gérer la session gestionnaire' : 'Ouvrir la saisie du PIN gestionnaire'}
             >
-              <RefreshCw size={16} />
-              Recommencer
+              {role === 'manager' ? <Unlock size={18} /> : <Lock size={18} />}
             </button>
-          )}
+            {imageSrc && !isAnalyzing && (
+              <button
+                onClick={reset}
+                className="text-sm font-medium text-slate-500 hover:text-slate-900 flex items-center gap-1.5 transition-colors"
+              >
+                <RefreshCw size={16} />
+                Recommencer
+              </button>
+            )}
+          </div>
         </div>
       </header>
+
+      <AnimatePresence>
+        {isPinOverlayOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm"
+            onClick={closePinOverlay}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">
+                    {role === 'manager' ? 'Session active' : 'Accès gestionnaire'}
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold text-slate-900">
+                    {role === 'manager' ? 'Mode gestionnaire' : 'Entrer le PIN'}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={closePinOverlay}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Fermer la fenêtre PIN"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {role === 'manager' ? (
+                <div className="space-y-4">
+                  <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                    Les permissions gestionnaire sont actives. La session reviendra automatiquement en mode Opérateur après 5 minutes d’inactivité.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={closePinOverlay}
+                      className="flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      Fermer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePinSubmit}
+                      className="flex-1 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
+                    >
+                      Revenir opérateur
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="flex items-center justify-center gap-3">
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className={`h-3 w-3 rounded-full transition-colors ${
+                            index < pinValue.length ? 'bg-indigo-600' : 'bg-slate-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-3 text-center text-xs text-slate-500">PIN à 4 chiffres</p>
+                  </div>
+
+                  {pinError && (
+                    <p className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {pinError}
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Effacer', '0', 'OK'].map((key) => {
+                      const isActionKey = key === 'Effacer' || key === 'OK';
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            if (key === 'Effacer') {
+                              removeLastPinDigit();
+                              return;
+                            }
+
+                            if (key === 'OK') {
+                              void handlePinSubmit();
+                              return;
+                            }
+
+                            appendPinDigit(key);
+                          }}
+                          className={`rounded-2xl px-4 py-4 text-base font-semibold transition-colors ${
+                            isActionKey
+                              ? 'bg-slate-900 text-white hover:bg-slate-800'
+                              : 'border border-slate-200 bg-white text-slate-900 hover:bg-slate-50'
+                          }`}
+                        >
+                          {key}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 items-start">
