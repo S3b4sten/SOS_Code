@@ -147,7 +147,16 @@ export default function App() {
     try {
       const base64Data = imageSrc.split(',')[1];
       const analysisResults = await analyzeToys(base64Data, mimeType);
-      const sorted = [...analysisResults].sort((a, b) => {
+
+      // Gemini sometimes returns coordinates on a 0–1000 scale instead of 0–1
+      const normalized = analysisResults.map(item => {
+        const b = item.box2d;
+        const scale = b.some(v => v > 1) ? 1000 : 1;
+        return { ...item, box2d: [b[0] / scale, b[1] / scale, b[2] / scale, b[3] / scale] as [number, number, number, number] };
+      });
+      console.log('[ToyScanner] box2d normalized:', normalized.map(r => ({ name: r.name, box2d: r.box2d })));
+
+      const sorted = [...normalized].sort((a, b) => {
         const rowDiff = a.box2d[0] - b.box2d[0];
         if (Math.abs(rowDiff) > 0.15) return rowDiff;
         return a.box2d[1] - b.box2d[1];
@@ -214,6 +223,8 @@ export default function App() {
     )
     : undefined;
   const hasInvalidQuantity = currentDraft ? currentDraft.quantity <= 0 : false;
+  const currentBox = results && currentIndex < results.length ? results[currentIndex].box2d : null;
+  const showBoundingBox = currentBox && currentBox.length === 4;
   const addedCount = Object.values(processedItems).filter(status => status === 'added' || status === 'incremented').length;
   const skippedCount = Object.values(processedItems).filter(status => status === 'skipped').length;
 
@@ -505,25 +516,21 @@ export default function App() {
                   </div>
                 </div>
               ) : (
-                <div className="flex justify-center bg-slate-100 w-full overflow-hidden">
+                <div className="flex justify-center items-start bg-slate-100 w-full overflow-hidden">
                   <div className="relative inline-block max-w-full">
                     <img
                       src={imageSrc!}
                       alt="Captured toys"
                       className="w-auto h-auto max-w-full max-h-[50vh] md:max-h-[calc(100vh-16rem)] block"
                     />
-                    {results && !isAnalyzing && currentIndex < results.length && (
-                      <motion.div
-                        layoutId="highlight-box"
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3, type: "spring" }}
-                        className="absolute bg-emerald-500/40 border-4 border-emerald-400 rounded-xl shadow-[0_0_20px_rgba(52,211,153,0.6)] z-10 pointer-events-none"
+                    {!isAnalyzing && showBoundingBox && currentBox && (
+                      <div
+                        className="absolute bg-emerald-500/40 border-4 border-emerald-400 rounded-xl z-10 pointer-events-none"
                         style={{
-                          top: `${results[currentIndex].box2d![0] * 100}%`,
-                          left: `${results[currentIndex].box2d![1] * 100}%`,
-                          height: `${(results[currentIndex].box2d![2] - results[currentIndex].box2d![0]) * 100}%`,
-                          width: `${(results[currentIndex].box2d![3] - results[currentIndex].box2d![1]) * 100}%`,
+                          top: `${currentBox[0] * 100}%`,
+                          left: `${currentBox[1] * 100}%`,
+                          height: `${(currentBox[2] - currentBox[0]) * 100}%`,
+                          width: `${(currentBox[3] - currentBox[1]) * 100}%`,
                         }}
                       />
                     )}
