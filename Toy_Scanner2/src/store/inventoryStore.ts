@@ -7,8 +7,6 @@ export interface InventoryItem {
   name: string
   category: string
   description: string
-  priceMin: number
-  priceMax: number
   quantity: number
   addedAt: number
   lastMovementAt: number
@@ -67,7 +65,6 @@ export function listItems(): InventoryItem[] {
 
 export function getStats(): {
   totalItems: number
-  totalValue: number
   lowStock: InventoryItem[]
   dormant: InventoryItem[]
 } {
@@ -75,10 +72,6 @@ export function getStats(): {
   const dormantThreshold = Date.now() - 30 * 24 * 60 * 60 * 1000
   return {
     totalItems: items.reduce((acc, i) => acc + i.quantity, 0),
-    totalValue: items.reduce(
-      (acc, i) => acc + ((i.priceMin + i.priceMax) / 2) * i.quantity,
-      0
-    ),
     lowStock: items.filter(i => i.quantity <= 2),
     dormant: items.filter(i => i.lastMovementAt < dormantThreshold),
   }

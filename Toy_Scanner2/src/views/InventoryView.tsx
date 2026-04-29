@@ -29,7 +29,6 @@ export default function InventoryView({ onMutate }: InventoryViewProps) {
     : items.filter(i => i.category === activeCategory);
 
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const totalValue = items.reduce((sum, i) => sum + ((i.priceMin + i.priceMax) / 2) * i.quantity, 0);
 
   function handleQuantityChange(id: string, delta: number) {
     updateQuantity(id, delta);
@@ -65,10 +64,6 @@ export default function InventoryView({ onMutate }: InventoryViewProps) {
         <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm p-4">
           <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-1">Articles en stock</p>
           <p className="text-2xl font-bold text-slate-900">{totalItems}</p>
-        </div>
-        <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-          <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-1">Valeur estimée</p>
-          <p className="text-2xl font-bold text-slate-900">{totalValue.toFixed(0)} $</p>
         </div>
       </div>
 
@@ -134,9 +129,7 @@ export default function InventoryView({ onMutate }: InventoryViewProps) {
                     {rotation.label}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {item.priceMin} $–{item.priceMax} $ CAD
-                </p>
+                <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{item.description}</p>
               </div>
 
               {/* Quantity controls */}

@@ -6,7 +6,7 @@ import { addItem, listItems, updateQuantity, getStats, type InventoryItem } from
 import { getCurrentRole, login, logout, onActivity, subscribe, type AuthRole } from './store/authStore';
 import InventoryView from './views/InventoryView';
 
-type ConfirmationDraft = Pick<ToyAnalysisResult, 'name' | 'category' | 'description' | 'priceMin' | 'priceMax'> & {
+type ConfirmationDraft = Pick<ToyAnalysisResult, 'name' | 'category' | 'description'> & {
   quantity: number;
 };
 
@@ -167,8 +167,6 @@ export default function App() {
         name: item.name,
         category: item.category,
         description: item.description,
-        priceMin: item.priceMin,
-        priceMax: item.priceMax,
         quantity: 1,
       })));
       setProcessedItems({});
@@ -307,7 +305,7 @@ export default function App() {
             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
               <Tag size={18} />
             </div>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">Classificateur de Jouets</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">Invox</h1>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-1 bg-slate-100 rounded-xl p-1">
@@ -465,9 +463,9 @@ export default function App() {
                   <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 mb-4">
                     <ImageIcon size={32} />
                   </div>
-                  <h2 className="text-lg font-medium text-slate-900 mb-2">Ajouter une photo de jouets</h2>
+                  <h2 className="text-lg font-medium text-slate-900 mb-2">Scanner des articles</h2>
                   <p className="text-sm text-slate-500 mb-8 max-w-[250px]">
-                    Prenez une photo de jouets sur une table ou téléversez une photo existante pour les identifier.
+                    Prenez une photo d'articles ou téléversez une image existante pour les identifier et les ajouter à l'inventaire.
                   </p>
 
                   <div className="flex flex-col w-full gap-3 sm:flex-row sm:justify-center">
@@ -568,7 +566,7 @@ export default function App() {
                 onClick={handleAnalyze}
                 className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-medium shadow-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 text-lg"
               >
-                Analyser les jouets
+                Analyser les articles
               </motion.button>
             )}
           </div>
@@ -586,7 +584,7 @@ export default function App() {
                   <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
                   <h3 className="text-lg font-medium text-slate-900 mb-2">Analyse en cours...</h3>
                   <p className="text-sm text-slate-500 max-w-[280px]">
-                    Notre IA analyse l'image pour identifier chaque jouet et le catégoriser. Cela peut prendre quelques secondes.
+                    Notre IA analyse l'image pour identifier chaque article et le catégoriser. Cela peut prendre quelques secondes.
                   </p>
                 </motion.div>
               ) : results ? (
@@ -598,7 +596,7 @@ export default function App() {
                 >
                   <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-semibold text-slate-900">
-                      {results.length} {results.length === 1 ? 'Jouet trouvé' : 'Jouets trouvés'}
+                      {results.length} {results.length === 1 ? 'Article trouvé' : 'Articles trouvés'}
                     </h2>
                   </div>
 
@@ -607,9 +605,9 @@ export default function App() {
                       <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 mx-auto mb-4">
                         <Info size={24} />
                       </div>
-                      <h3 className="text-lg font-medium text-slate-900 mb-1">Aucun jouet détecté</h3>
+                      <h3 className="text-lg font-medium text-slate-900 mb-1">Aucun article détecté</h3>
                       <p className="text-sm text-slate-500">
-                        Nous n'avons pas pu identifier clairement de jouets dans cette image. Essayez une photo plus nette avec un meilleur éclairage.
+                        Nous n'avons pas pu identifier clairement d'articles dans cette image. Essayez une photo plus nette avec un meilleur éclairage.
                       </p>
                     </div>
                   ) : currentIndex < results.length ? (
@@ -647,35 +645,6 @@ export default function App() {
                                   onChange={(event) => updateDraftField(currentIndex, 'category', event.target.value)}
                                   className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                                 />
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1.5">
-                                    Prix min
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={currentDraft?.priceMin ?? 0}
-                                    onChange={(event) => updateDraftField(currentIndex, 'priceMin', Number(event.target.value))}
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1.5">
-                                    Prix max
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={currentDraft?.priceMax ?? 0}
-                                    onChange={(event) => updateDraftField(currentIndex, 'priceMax', Number(event.target.value))}
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                                  />
-                                </div>
                               </div>
 
                               <div>
@@ -720,11 +689,6 @@ export default function App() {
                                   />
                                   Confiance {results[currentIndex].confidence}
                                 </div>
-                                {(results[currentIndex].priceMin != null || results[currentIndex].priceMax != null) && (
-                                  <div className="flex items-center gap-1.5 text-xs md:text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg">
-                                    Estimation Gemini {results[currentIndex].priceMin ?? '?'}$ - {results[currentIndex].priceMax ?? '?'}$ CAD
-                                  </div>
-                                )}
                               </div>
 
                               {existingItem && (
@@ -816,7 +780,7 @@ export default function App() {
                     </div>
                     <h3 className="text-base font-medium text-slate-900 mb-1">Prêt à analyser</h3>
                     <p className="text-sm text-slate-500">
-                      Prenez une photo ou téléversez une image pour voir les jouets identifiés et leurs catégories ici.
+                      Prenez une photo ou téléversez une image pour voir les articles identifiés et leurs catégories ici.
                     </p>
                   </div>
                 </div>
